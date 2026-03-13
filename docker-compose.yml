@@ -1,0 +1,50 @@
+services:
+
+  ollama:
+    image: ollama/ollama
+    container_name: homeai_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+  redis:
+    image: redis:alpine
+    container_name: homeai_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  agents:
+    build:
+      context: ./agents
+    container_name: homeai_agents
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./workspace:/workspace
+    env_file:
+      - .env
+    depends_on:
+      - ollama
+      - redis
+
+  telegram:
+    build:
+      context: ./telegram
+    container_name: homeai_telegram
+    env_file:
+      - .env
+    depends_on:
+      - agents
+
+volumes:
+  ollama_data:
+  redis_data:

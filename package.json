@@ -1,0 +1,20 @@
+{
+  "name": "homeai",
+  "version": "1.0.0",
+  "description": "Local autonomous AI agent lab",
+  "scripts": {
+    "env": "cp .env.example .env",
+    "model:init": "dotenv -e .env -- docker compose up -d ollama && dotenv -e .env -- docker run --rm --entrypoint /bin/sh --network home-ai_default -v home-ai_ollama_data:/root/.ollama -e OLLAMA_HOST=http://ollama:11434 -e OLLAMA_MODEL=$OLLAMA_MODEL ollama/ollama -c \"echo 'Waiting for Ollama...' && until ollama list >/dev/null 2>&1; do sleep 2; done && echo 'Pulling model...' && ollama pull $OLLAMA_MODEL\"",
+    "start": "dotenv -e .env -- npm run model:init && docker compose up -d",
+    "stop": "docker compose down",
+    "restart": "docker compose restart",
+    "restart:agents": "docker compose restart agents",
+    "restart:ollama": "docker compose restart ollama",
+    "restart:redis": "docker compose restart redis",
+    "restart:telegram": "docker compose restart telegram",
+    "test": "dotenv -e .env -- echo $OLLAMA_MODEL"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
+  }
+}
