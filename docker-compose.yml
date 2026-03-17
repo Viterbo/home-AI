@@ -1,7 +1,7 @@
 services:
 
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:0.18.0
     container_name: homeai_ollama
     ports:
       - "11434:11434"
@@ -16,8 +16,6 @@ services:
   redis:
     image: redis:alpine
     container_name: homeai_redis
-    ports:
-      - "6379:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
