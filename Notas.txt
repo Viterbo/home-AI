@@ -1,0 +1,7 @@
+curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d '{"message":"Remember that my favorite color is blue"}' | jq
+
+curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d '{"message":"What is my favorite color? you can say IDK if you dont know"}' | jq
+
+
+
+npm run restart:agents
