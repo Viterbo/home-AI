@@ -3,3 +3,6 @@ uvicorn
 requests
 redis
 pydantic
+crewai
+crewai[tools]
+litellm

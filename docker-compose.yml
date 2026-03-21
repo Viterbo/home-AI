@@ -6,9 +6,8 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - /home/viter/Descargas/ollama:/root/.ollama      
     restart: unless-stopped
-
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -28,8 +27,12 @@ services:
       - "${APP_PORT:-8000}:8000"
     volumes:
       - ./workspace:/workspace
+      - ./agents:/app
     env_file:
       - .env
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.1:8b
     depends_on:
       - ollama
       - redis
@@ -37,7 +40,7 @@ services:
       uvicorn app.main:app
       --host 0.0.0.0
       --port 8000
-      --log-level debug      
+      --log-level debug
 
   telegram:
     build:

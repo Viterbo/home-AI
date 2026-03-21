@@ -9,7 +9,7 @@
     "ollama:wait": "echo '⏳ Waiting for Ollama API...' && docker run --rm --network home-ai_default curlimages/curl:8.5.0 sh -c \"until curl -s http://ollama:11434/api/tags > /dev/null; do echo '...waiting'; sleep 2; done && echo '✔ Ollama API is ready'\"",
     "ollama:pull": "dotenv -e .env -- sh -c 'echo \"⬇ Pulling model...\" && docker run --rm --entrypoint /bin/sh --network home-ai_default -v home-ai_ollama_data:/root/.ollama -e OLLAMA_MODEL=$OLLAMA_MODEL -e OLLAMA_HOST=http://ollama:11434 ollama/ollama -c \"echo Model: $OLLAMA_MODEL && echo Host: $OLLAMA_HOST && ollama pull $OLLAMA_MODEL\"'",
     "model:init": "npm run ollama:start && npm run ollama:wait && npm run ollama:pull",
-    "start": "npm run model:init && docker compose up -d",
+    "start": "sudo systemctl stop ollama && npm run model:init && docker compose up -d && npm run restart:agents",
     "stop": "docker compose down",
     "restart": "docker compose restart",
     "restart:agents": "docker compose up -d --build agents",

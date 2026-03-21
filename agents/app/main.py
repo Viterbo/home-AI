@@ -1,23 +1,19 @@
 import sys
 import os
-import requests
-import redis
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
+from crewai import Agent, Task, Crew
+from crewai import LLM
 
 # =========================
 # CONFIG
 # =========================
 
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-
-MEMORY_KEY = "agent_memory"
-MAX_MEMORY_CHARS = 4000
+MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
 # =========================
-# LOGGING (INFALIBLE)
+# LOGGING
 # =========================
 
 def console_log(label: str, data: any = ""):
@@ -25,103 +21,78 @@ def console_log(label: str, data: any = ""):
     sys.stderr.flush()
 
 # =========================
-# REDIS
+# LLM (CREWAI COMPATIBLE)
 # =========================
 
-redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+console_log("INIT", "Initializing CrewAI Ollama LLM")
 
-def get_memory():
-    console_log("REDIS.GET", MEMORY_KEY)
-    return redis_client.get(MEMORY_KEY) or ""
-
-def append_memory(text: str):
-    console_log("REDIS.APPEND", text[:100])
-
-    existing = get_memory()
-    new_value = existing + "\n" + text
-
-    # trim memory
-    if len(new_value) > MAX_MEMORY_CHARS:
-        new_value = new_value[-MAX_MEMORY_CHARS:]
-
-    redis_client.set(MEMORY_KEY, new_value)
+llm = LLM(
+    model=f"ollama/{MODEL}" if not MODEL.startswith("ollama/") else MODEL,
+    base_url=OLLAMA_URL,
+)
 
 # =========================
-# LLM
+# AGENTS
 # =========================
 
-def call_llm(prompt: str) -> str:
-    console_log("LLM.PROMPT", prompt[:300])
+console_log("INIT", "Creating agents")
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False
-    }
+coder = Agent(
+    role="Senior Developer",
+    goal="Write and explain code",
+    backstory="Expert software engineer",
+    verbose=True,
+    llm=llm
+)
 
-    try:
-        response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=120)
-        response.raise_for_status()
-        data = response.json()
-        result = data.get("response", "")
-        console_log("LLM.RESPONSE", result[:300])
-        return result
-    except Exception as e:
-        console_log("LLM.ERROR", str(e))
-        return f"Error: {e}"
+poet = Agent(
+    role="Poet",
+    goal="Write beautiful poetry",
+    backstory="Romantic and creative poet",
+    verbose=True,
+    llm=llm
+)
 
 # =========================
 # FASTAPI
 # =========================
 
-app = FastAPI(title="HomeAI Single Agent Test")
+app = FastAPI()
 
 class TaskRequest(BaseModel):
     message: str
 
-class TaskResponse(BaseModel):
-    result: str
-
-# =========================
-# ENDPOINT
-# =========================
-
-@app.post("/tasks", response_model=TaskResponse)
-async def run_task(request: TaskRequest):
+@app.post("/tasks")
+async def run_task(req: TaskRequest):
     try:
-        console_log("REQUEST.IN", request.message)
+        console_log("REQUEST.IN", req.message)
 
-        # 1. load memory
-        memory = get_memory()
-        console_log("MEMORY.LOADED", memory[:200])
+        selected_agent = coder if "code" in req.message.lower() else poet
+        console_log("AGENT.SELECTED", selected_agent.role)
 
-        # 2. build prompt
-        prompt = f"""
-You are a persistent AI agent.
+        task = Task(
+            description=req.message,
+            expected_output="A complete response",
+            agent=selected_agent
+        )
 
-Previous conversation:
-{memory}
+        console_log("TASK.CREATED", req.message)
 
-New message:
-{request.message}
+        crew = Crew(
+            agents=[coder, poet],
+            tasks=[task],
+            verbose=True,
+            tracing=True
+        )
 
-Instructions:
-- Continue the conversation
-- Use previous context
-- Be consistent
-"""
+        console_log("CREW.START", "Executing crew")
 
-        # 3. call LLM
-        response = call_llm(prompt)
+        result = crew.kickoff()
 
-        # 4. save memory
-        append_memory(f"User: {request.message}")
-        append_memory(f"Agent: {response}")
+        console_log("CREW.RESULT", str(result)[:200])
 
-        console_log("REQUEST.OUT", response[:200])
-
-        return TaskResponse(result=response)
+        return {"result": str(result)}
 
     except Exception as e:
         console_log("ERROR", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise

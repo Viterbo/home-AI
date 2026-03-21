@@ -2,6 +2,7 @@ curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d 
 
 curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d '{"message":"What is my favorite color? you can say IDK if you dont know"}' | jq
 
-
-
 npm run restart:agents
+
+
+curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d '{"message":"Write a poem about AI"}' | jq
